@@ -1,12 +1,12 @@
 import os
 import sys
-import json
-from datetime import datetime, timedelta
+import pandas as pd
+import numpy as np
+from datetime import datetime
+import streamlit as st  # Streamlit 추가
 
 try:
     import pvlib
-    import pandas as pd
-    import numpy as np
     from pvlib.pvsystem import PVSystem, Array, FixedMount
     from pvlib.modelchain import ModelChain
     from pvlib.location import Location
@@ -14,152 +14,73 @@ try:
 except ImportError:
     PVLIB_AVAILABLE = False
 
-try:
-    from flask import Flask, request, jsonify
-    FLASK_AVAILABLE = True
-except ImportError:
-    FLASK_AVAILABLE = False
-
-
-def run_simulation(latitude, longitude, tilt, azimuth, capacity_w, date_str, timezone=None):
+# --- 시뮬레이션 로직 (기존 함수 유지) ---
+def run_simulation(latitude, longitude, tilt, azimuth, capacity_w, date_str, timezone="UTC"):
     if not PVLIB_AVAILABLE:
-        raise RuntimeError("pvlib is not installed")
-
-    if timezone is None:
-        timezone = "UTC"
+        st.error("pvlib 라이브러리가 설치되지 않았습니다.")
+        return None
 
     location = Location(latitude=latitude, longitude=longitude, tz=timezone)
-
     start = pd.Timestamp(date_str, tz=timezone)
     end = start + pd.Timedelta(days=1) - pd.Timedelta(minutes=5)
     times = pd.date_range(start=start, end=end, freq="5min")
 
-    module_parameters = {
-        "pdc0": capacity_w,
-        "gamma_pdc": -0.003,
-    }
+    module_parameters = {"pdc0": capacity_w, "gamma_pdc": -0.003}
     temp_model_params = pvlib.temperature.TEMPERATURE_MODEL_PARAMETERS["sapm"]["open_rack_glass_glass"]
 
     mount = FixedMount(surface_tilt=tilt, surface_azimuth=azimuth)
-    array = Array(
-        mount=mount,
-        module_parameters=module_parameters,
-        temperature_model_parameters=temp_model_params,
-    )
+    array = Array(mount=mount, module_parameters=module_parameters, temperature_model_parameters=temp_model_params)
     system = PVSystem(arrays=[array], inverter_parameters={"pdc0": capacity_w})
     mc = ModelChain(system, location, spectral_model="no_loss", aoi_model="physical")
 
     clearsky = location.get_clearsky(times)
     mc.run_model(clearsky)
 
-    ac_series = mc.results.ac
-    ac_values = ac_series.clip(lower=0)
-
-    total_energy_wh = float(ac_values.sum() / 12)
-    peak_power_w = float(ac_values.max())
-    peak_idx = ac_values.idxmax()
-    peak_time = peak_idx.isoformat() if not pd.isna(peak_idx) else ""
-
-    positive_mask = ac_values > 0
-    sunshine_hours = float(positive_mask.sum() / 12)
-
-    timestamps = [t.isoformat() for t in ac_values.index]
-    ac_list = [round(float(v), 2) for v in ac_values.values]
+    ac_values = mc.results.ac.clip(lower=0)
 
     return {
-        "timestamps": timestamps,
-        "ac_power_w": ac_list,
-        "total_energy_wh": round(total_energy_wh, 2),
-        "peak_power_w": round(peak_power_w, 2),
-        "peak_time": peak_time,
-        "sunshine_hours": round(sunshine_hours, 2),
+        "times": ac_values.index,
+        "powers": ac_values.values,
+        "total_energy": ac_values.sum() / 12,
+        "peak_power": ac_values.max()
     }
 
+# --- Streamlit UI 부분 (여기서부터가 진짜 화면을 만듭니다) ---
+st.set_page_config(page_title="태양광 발전 시뮬레이터", layout="wide")
 
-def find_optimal_tilt(latitude, longitude, capacity_w, date_str, timezone=None, azimuth=180):
-    if not PVLIB_AVAILABLE:
-        raise RuntimeError("pvlib is not installed")
+st.title("☀️ 태양광 발전 시뮬레이터")
+st.write("위도, 경도 및 패널 각도에 따른 예상 발전량을 확인하세요.")
 
-    if timezone is None:
-        timezone = "UTC"
+# 사이드바 입력창
+st.sidebar.header("📍 위치 및 설비 설정")
+lat = st.sidebar.number_input("위도 (Latitude)", value=37.5, step=0.1)
+lon = st.sidebar.number_input("경도 (Longitude)", value=127.0, step=0.1)
+cap = st.sidebar.number_input("설치 용량 (W)", value=3000, step=100)
 
-    tilt_range = list(range(0, 91, 5))
-    results = []
+st.sidebar.header("📐 패널 설치 설정")
+tilt = st.sidebar.slider("설치 각도 (Tilt)", 0, 90, 30)
+azimuth = st.sidebar.slider("방위각 (Azimuth, 180은 정남향)", 0, 360, 180)
+date = st.sidebar.date_input("시뮬레이션 날짜", datetime.now())
 
-    for tilt in tilt_range:
-        sim = run_simulation(latitude, longitude, tilt, azimuth, capacity_w, date_str, timezone)
-        results.append({"tilt": tilt, "energy_wh": sim["total_energy_wh"]})
+# 시뮬레이션 실행 버튼
+if st.sidebar.button("시뮬레이션 실행"):
+    with st.spinner("발전량 계산 중..."):
+        result = run_simulation(lat, lon, tilt, azimuth, cap, str(date))
 
-    best = max(results, key=lambda x: x["energy_wh"])
+        if result:
+            # 상단 요약 카드
+            col1, col2 = st.columns(2)
+            col1.metric("예상 일일 총 발전량", f"{result['total_energy']/1000:.2f} kWh")
+            col2.metric("최대 출력", f"{result['peak_power']:.2f} W")
 
-    return {
-        "optimal_tilt": best["tilt"],
-        "best_energy_wh": best["energy_wh"],
-        "tilt_energies": results,
-    }
+            # 그래프 그리기
+            st.subheader(f"📅 {date} 시간대별 예상 발전 그래프")
+            chart_data = pd.DataFrame({
+                "시간": result['times'],
+                "출력(W)": result['powers']
+            }).set_index("시간")
+            st.line_chart(chart_data)
 
-
-if FLASK_AVAILABLE:
-    app = Flask(__name__)
-
-    @app.route("/healthz", methods=["GET"])
-    def health():
-        return jsonify({"status": "ok", "pvlib": PVLIB_AVAILABLE})
-
-    @app.route("/simulate", methods=["POST"])
-    def simulate():
-        try:
-            data = request.get_json()
-            if not data:
-                return jsonify({"error": "Request body required"}), 400
-
-            required = ["latitude", "longitude", "tilt", "azimuth", "capacity_w", "date"]
-            for field in required:
-                if field not in data:
-                    return jsonify({"error": f"Missing required field: {field}"}), 400
-
-            result = run_simulation(
-                latitude=float(data["latitude"]),
-                longitude=float(data["longitude"]),
-                tilt=float(data["tilt"]),
-                azimuth=float(data["azimuth"]),
-                capacity_w=float(data["capacity_w"]),
-                date_str=data["date"],
-                timezone=data.get("timezone", "UTC"),
-            )
-            return jsonify(result)
-
-        except Exception as e:
-            return jsonify({"error": str(e)}), 500
-
-    @app.route("/simulate/optimal-tilt", methods=["POST"])
-    def optimal_tilt():
-        try:
-            data = request.get_json()
-            if not data:
-                return jsonify({"error": "Request body required"}), 400
-
-            required = ["latitude", "longitude", "capacity_w", "date"]
-            for field in required:
-                if field not in data:
-                    return jsonify({"error": f"Missing required field: {field}"}), 400
-
-            result = find_optimal_tilt(
-                latitude=float(data["latitude"]),
-                longitude=float(data["longitude"]),
-                capacity_w=float(data["capacity_w"]),
-                date_str=data["date"],
-                timezone=data.get("timezone", "UTC"),
-                azimuth=float(data.get("azimuth", 180)),
-            )
-            return jsonify(result)
-
-        except Exception as e:
-            return jsonify({"error": str(e)}), 500
-
-#    if __name__ == "__main__":
-#        port = int(os.environ.get("SOLAR_SIM_PORT", "5001"))
-#        app.run(host="0.0.0.0", port=port, debug=False)
-#else:
-#    print("Flask not available. Install with: pip install flask", file=sys.stderr)
-#    sys.exit(1)
+            st.info("이 결과는 맑은 하늘(Clear Sky) 모델을 기준으로 한 이론적 수치입니다.")
+else:
+    st.info("왼쪽 설정값을 확인한 후 '시뮬레이션 실행' 버튼을 눌러주세요.")
