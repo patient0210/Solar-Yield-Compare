@@ -39,6 +39,7 @@ import {
   Clock,
   ArrowRight,
 } from "lucide-react";
+import AddressSearch from "@/components/address-search";
 
 export default function Home() {
   const { toast } = useToast();
@@ -157,6 +158,12 @@ export default function Home() {
             <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
               <MapPin className="w-4 h-4" /> 위치
             </div>
+            <AddressSearch
+              onSelect={(newLat, newLng) => {
+                setLat(newLat);
+                setLng(newLng);
+              }}
+            />
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>위도</Label>
