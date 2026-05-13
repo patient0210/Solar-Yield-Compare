@@ -181,7 +181,17 @@ export default function Compare() {
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <Label>방위각 (0-360°)</Label>
-                <span className="font-mono text-sm text-primary">{azimuth}°</span>
+                <div className="flex items-center gap-1">
+                  <Input
+                    type="number"
+                    min={0}
+                    max={360}
+                    value={azimuth}
+                    onChange={(e) => setAzimuth(Math.min(360, Math.max(0, Number(e.target.value))))}
+                    className="w-20 h-7 text-right font-mono text-sm px-2 py-0"
+                  />
+                  <span className="text-sm text-muted-foreground">°</span>
+                </div>
               </div>
               <Slider min={0} max={360} step={1} value={[azimuth]} onValueChange={(v) => setAzimuth(v[0])} />
               <p className="text-xs text-muted-foreground">180°는 정남향입니다</p>
