@@ -1,4 +1,4 @@
-modules = ["nodejs-24"]
+modules = ["nodejs-24", "python-3.11"]
 
 [deployment]
 router = "application"
@@ -11,6 +11,43 @@ env = { "CI" = "true" }
 [workflows]
 runButton = "Project"
 
+[[workflows.workflow]]
+name = "Project"
+mode = "parallel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Solar Sim Service"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Solar App"
+
+[[workflows.workflow]]
+name = "Solar Sim Service"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "SOLAR_SIM_PORT=5001 python artifacts/solar-sim/sim_service.py"
+waitForPort = 5001
+
+[workflows.workflow.metadata]
+outputType = "console"
+
+[[workflows.workflow]]
+name = "Solar App"
+author = "agent"
+
+[workflows.workflow.metadata]
+outputType = "webview"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "PORT=25799 BASE_PATH=/ pnpm --filter @workspace/solar-app run dev"
+waitForPort = 25799
+
 [agent]
 stack = "PNPM_WORKSPACE"
 expertMode = true
@@ -20,9 +57,17 @@ path = "scripts/post-merge.sh"
 timeoutMs = 20000
 
 [[ports]]
+localPort = 5001
+externalPort = 3000
+
+[[ports]]
 localPort = 8080
 externalPort = 8080
 
 [[ports]]
 localPort = 8081
 externalPort = 80
+
+[[ports]]
+localPort = 25799
+externalPort = 3001

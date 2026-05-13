@@ -3,13 +3,15 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Solar PV Simulation API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: simulation
+    description: Solar PV simulation operations
 paths:
   /healthz:
     get:
@@ -24,6 +26,65 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /simulate:
+    post:
+      operationId: runSimulation
+      tags: [simulation]
+      summary: Run solar PV simulation
+      description: Runs a pvlib simulation for given panel and location parameters
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SimulationInput"
+      responses:
+        "200":
+          description: Simulation results
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SimulationResult"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Simulation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /simulate/optimal-tilt:
+    post:
+      operationId: findOptimalTilt
+      tags: [simulation]
+      summary: Find optimal tilt angle
+      description: Finds the tilt angle that maximizes daily energy production
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OptimalTiltInput"
+      responses:
+        "200":
+          description: Optimal tilt result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OptimalTiltResult"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +95,142 @@ components:
       required:
         - status
 
+    SimulationInput:
+      type: object
+      required:
+        - latitude
+        - longitude
+        - tilt
+        - azimuth
+        - capacity_w
+        - date
+      properties:
+        latitude:
+          type: number
+          description: Location latitude (-90 to 90)
+          minimum: -90
+          maximum: 90
+        longitude:
+          type: number
+          description: Location longitude (-180 to 180)
+          minimum: -180
+          maximum: 180
+        tilt:
+          type: number
+          description: Panel tilt angle in degrees (0 = horizontal, 90 = vertical)
+          minimum: 0
+          maximum: 90
+        azimuth:
+          type: number
+          description: Panel azimuth angle in degrees (180 = south-facing)
+          minimum: 0
+          maximum: 360
+        capacity_w:
+          type: number
+          description: Panel capacity in watts
+          minimum: 1
+        date:
+          type: string
+          description: Simulation date (YYYY-MM-DD)
+        timezone:
+          type: string
+          description: IANA timezone string (e.g. Asia/Seoul)
+
+    SimulationResult:
+      type: object
+      required:
+        - timestamps
+        - ac_power_w
+        - total_energy_wh
+        - peak_power_w
+        - peak_time
+        - sunshine_hours
+      properties:
+        timestamps:
+          type: array
+          items:
+            type: string
+          description: ISO8601 timestamps for each data point (5-min intervals)
+        ac_power_w:
+          type: array
+          items:
+            type: number
+          description: AC power output in watts at each timestamp
+        total_energy_wh:
+          type: number
+          description: Total daily energy production in Wh
+        peak_power_w:
+          type: number
+          description: Peak AC power output in watts
+        peak_time:
+          type: string
+          description: Time of peak power output (ISO8601)
+        sunshine_hours:
+          type: number
+          description: Effective sunshine hours
+
+    OptimalTiltInput:
+      type: object
+      required:
+        - latitude
+        - longitude
+        - capacity_w
+        - date
+      properties:
+        latitude:
+          type: number
+          minimum: -90
+          maximum: 90
+        longitude:
+          type: number
+          minimum: -180
+          maximum: 180
+        capacity_w:
+          type: number
+          minimum: 1
+        date:
+          type: string
+          description: Simulation date (YYYY-MM-DD)
+        timezone:
+          type: string
+        azimuth:
+          type: number
+          minimum: 0
+          maximum: 360
+
+    OptimalTiltResult:
+      type: object
+      required:
+        - optimal_tilt
+        - tilt_energies
+        - best_energy_wh
+      properties:
+        optimal_tilt:
+          type: number
+          description: Optimal tilt angle in degrees
+        best_energy_wh:
+          type: number
+          description: Energy production at optimal tilt in Wh
+        tilt_energies:
+          type: array
+          items:
+            $ref: "#/components/schemas/TiltEnergy"
+
+    TiltEnergy:
+      type: object
+      required:
+        - tilt
+        - energy_wh
+      properties:
+        tilt:
+          type: number
+        energy_wh:
+          type: number
+
+    ErrorResponse:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: string
