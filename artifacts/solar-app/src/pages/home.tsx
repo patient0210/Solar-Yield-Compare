@@ -7,7 +7,6 @@ import {
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -28,7 +27,6 @@ import {
   BarChart,
   Bar,
   Cell,
-  ReferenceLine,
 } from "recharts";
 import {
   Activity,
@@ -77,15 +75,15 @@ export default function Home() {
         onSuccess: (data) => {
           setSimResult(data);
           toast({
-            title: "Simulation Complete",
-            description: "Successfully computed daily PV production.",
+            title: "시뮬레이션 완료",
+            description: "일일 태양광 발전량 계산이 완료되었습니다.",
           });
         },
         onError: (err) => {
           toast({
             variant: "destructive",
-            title: "Simulation Failed",
-            description: err.error || "An unknown error occurred.",
+            title: "시뮬레이션 실패",
+            description: err.error || "알 수 없는 오류가 발생했습니다.",
           });
         },
       }
@@ -110,15 +108,15 @@ export default function Home() {
           setOptimalResult(data);
           setTilt(data.optimal_tilt);
           toast({
-            title: "Optimal Tilt Found",
-            description: `Set tilt to ${data.optimal_tilt} degrees for maximum yield.`,
+            title: "최적 경사각 탐색 완료",
+            description: `최대 발전량을 위해 경사각이 ${data.optimal_tilt}°로 설정되었습니다.`,
           });
         },
         onError: (err) => {
           toast({
             variant: "destructive",
-            title: "Optimization Failed",
-            description: err.error || "An unknown error occurred.",
+            title: "최적화 실패",
+            description: err.error || "알 수 없는 오류가 발생했습니다.",
           });
         },
       }
@@ -126,7 +124,7 @@ export default function Home() {
   };
 
   const formatTime = (isoString: string) => {
-    return new Date(isoString).toLocaleTimeString([], {
+    return new Date(isoString).toLocaleTimeString("ko-KR", {
       hour: "2-digit",
       minute: "2-digit",
     });
@@ -141,41 +139,43 @@ export default function Home() {
 
   return (
     <div className="min-h-screen w-full bg-background flex flex-col md:flex-row">
-      {/* Left Panel: Controls */}
+      {/* 왼쪽 패널: 입력 설정 */}
       <div className="w-full md:w-[400px] border-r bg-card p-6 flex flex-col gap-6 overflow-y-auto z-10 shrink-0 shadow-xl md:shadow-none">
         <div>
           <h1 className="text-2xl font-semibold text-foreground tracking-tight flex items-center gap-2">
             <Sun className="w-6 h-6 text-primary" />
-            Solar PV Simulator
+            태양광 발전 시뮬레이터
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Precision modeling for solar yield.
+            정밀 물리 모델 기반 태양광 발전량 예측
           </p>
         </div>
 
         <div className="space-y-5 flex-1">
-          {/* Location Group */}
+          {/* 위치 설정 */}
           <div className="space-y-4">
             <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-              <MapPin className="w-4 h-4" /> Location
+              <MapPin className="w-4 h-4" /> 위치
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Latitude</Label>
+                <Label>위도</Label>
                 <Input
                   type="number"
                   value={lat}
                   onChange={(e) => setLat(Number(e.target.value))}
                   className="font-mono"
+                  data-testid="input-latitude"
                 />
               </div>
               <div className="space-y-2">
-                <Label>Longitude</Label>
+                <Label>경도</Label>
                 <Input
                   type="number"
                   value={lng}
                   onChange={(e) => setLng(Number(e.target.value))}
                   className="font-mono"
+                  data-testid="input-longitude"
                 />
               </div>
             </div>
@@ -183,15 +183,15 @@ export default function Home() {
 
           <Separator />
 
-          {/* Orientation Group */}
+          {/* 방향 설정 */}
           <div className="space-y-4">
             <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-              <Compass className="w-4 h-4" /> Orientation
+              <Compass className="w-4 h-4" /> 패널 방향
             </div>
             <div className="space-y-4">
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <Label>Tilt Angle (0-90°)</Label>
+                  <Label>경사각 (0-90°)</Label>
                   <span className="font-mono text-sm text-primary">
                     {tilt}°
                   </span>
@@ -202,12 +202,13 @@ export default function Home() {
                   step={1}
                   value={[tilt]}
                   onValueChange={(v) => setTilt(v[0])}
+                  data-testid="slider-tilt"
                 />
               </div>
 
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <Label>Azimuth (0-360°)</Label>
+                  <Label>방위각 (0-360°)</Label>
                   <span className="font-mono text-sm text-primary">
                     {azimuth}°
                   </span>
@@ -218,9 +219,10 @@ export default function Home() {
                   step={1}
                   value={[azimuth]}
                   onValueChange={(v) => setAzimuth(v[0])}
+                  data-testid="slider-azimuth"
                 />
                 <p className="text-xs text-muted-foreground">
-                  180° is South-facing
+                  180°는 정남향입니다
                 </p>
               </div>
             </div>
@@ -228,46 +230,49 @@ export default function Home() {
 
           <Separator />
 
-          {/* System Group */}
+          {/* 시스템 사양 */}
           <div className="space-y-4">
             <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-              <Battery className="w-4 h-4" /> System Specs
+              <Battery className="w-4 h-4" /> 시스템 사양
             </div>
             <div className="space-y-2">
-              <Label>Panel Capacity (Watts)</Label>
+              <Label>패널 용량 (W)</Label>
               <Input
                 type="number"
                 value={capacityW}
                 onChange={(e) => setCapacityW(Number(e.target.value))}
                 className="font-mono"
+                data-testid="input-capacity"
               />
             </div>
           </div>
 
           <Separator />
 
-          {/* Time Group */}
+          {/* 시간 설정 */}
           <div className="space-y-4">
             <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-              <Calendar className="w-4 h-4" /> Time
+              <Calendar className="w-4 h-4" /> 날짜 및 시간대
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Date</Label>
+                <Label>날짜</Label>
                 <Input
                   type="date"
                   value={date}
                   onChange={(e) => setDate(e.target.value)}
                   className="font-mono"
+                  data-testid="input-date"
                 />
               </div>
               <div className="space-y-2">
-                <Label>Timezone</Label>
+                <Label>시간대</Label>
                 <Input
                   type="text"
                   value={timezone}
                   onChange={(e) => setTimezone(e.target.value)}
                   className="font-mono"
+                  data-testid="input-timezone"
                 />
               </div>
             </div>
@@ -279,8 +284,9 @@ export default function Home() {
             onClick={handleRunSimulation}
             disabled={runSim.isPending}
             className="w-full h-11 text-base font-medium"
+            data-testid="button-run-simulation"
           >
-            {runSim.isPending ? "Simulating..." : "Run Simulation"}
+            {runSim.isPending ? "계산 중..." : "시뮬레이션 실행"}
             {!runSim.isPending && <Activity className="w-4 h-4 ml-2" />}
           </Button>
           <Button
@@ -288,22 +294,23 @@ export default function Home() {
             onClick={handleFindOptimal}
             disabled={findOptimal.isPending}
             className="w-full h-11 text-base font-medium"
+            data-testid="button-find-optimal"
           >
-            {findOptimal.isPending ? "Optimizing..." : "Find Optimal Tilt"}
+            {findOptimal.isPending ? "최적화 중..." : "최적 경사각 탐색"}
           </Button>
         </div>
       </div>
 
-      {/* Right Panel: Results */}
+      {/* 오른쪽 패널: 결과 */}
       <div className="flex-1 p-6 md:p-10 overflow-y-auto bg-muted/30">
         {!simResult && !optimalResult && !runSim.isPending && !findOptimal.isPending && (
           <div className="h-full flex flex-col items-center justify-center text-center max-w-md mx-auto space-y-4">
             <div className="w-16 h-16 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mb-2">
               <Activity className="w-8 h-8" />
             </div>
-            <h2 className="text-2xl font-semibold">Ready for Simulation</h2>
+            <h2 className="text-2xl font-semibold">시뮬레이션 준비 완료</h2>
             <p className="text-muted-foreground">
-              Adjust parameters in the control panel and run the simulation to see detailed energy generation curves and system performance metrics.
+              왼쪽 패널에서 설정을 조정한 후 시뮬레이션을 실행하면 일별 발전 곡선과 성능 지표를 확인할 수 있습니다.
             </p>
           </div>
         )}
@@ -312,7 +319,7 @@ export default function Home() {
           <div className="h-full flex flex-col items-center justify-center text-center space-y-4">
             <div className="w-12 h-12 border-4 border-primary/30 border-t-primary rounded-full animate-spin" />
             <p className="text-muted-foreground animate-pulse">
-              Computing solar models...
+              태양광 모델 계산 중...
             </p>
           </div>
         )}
@@ -320,8 +327,8 @@ export default function Home() {
         {simResult && !runSim.isPending && (
           <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div>
-              <h2 className="text-2xl font-semibold tracking-tight">Daily Production Curve</h2>
-              <p className="text-muted-foreground mt-1">AC Power output throughout the simulated day.</p>
+              <h2 className="text-2xl font-semibold tracking-tight">일일 발전 곡선</h2>
+              <p className="text-muted-foreground mt-1">시뮬레이션 날짜의 시간대별 교류(AC) 출력</p>
             </div>
 
             <Card className="shadow-sm border-0 bg-card overflow-hidden">
@@ -344,6 +351,8 @@ export default function Home() {
                       unit=" W"
                     />
                     <RechartsTooltip
+                      formatter={(val: number) => [`${val.toFixed(0)} W`, "출력"]}
+                      labelFormatter={(label) => `시각: ${label}`}
                       contentStyle={{
                         backgroundColor: "hsl(var(--popover))",
                         borderColor: "hsl(var(--border))",
@@ -370,7 +379,7 @@ export default function Home() {
               <Card className="shadow-sm border-0 bg-card">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                    <Zap className="w-4 h-4 text-primary" /> Total Energy
+                    <Zap className="w-4 h-4 text-primary" /> 일일 발전량
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -384,7 +393,7 @@ export default function Home() {
               <Card className="shadow-sm border-0 bg-card">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                    <Activity className="w-4 h-4 text-primary" /> Peak Power
+                    <Activity className="w-4 h-4 text-primary" /> 최대 출력
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -398,7 +407,7 @@ export default function Home() {
               <Card className="shadow-sm border-0 bg-card">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                    <Clock className="w-4 h-4 text-primary" /> Peak Time
+                    <Clock className="w-4 h-4 text-primary" /> 최대 출력 시각
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -411,13 +420,13 @@ export default function Home() {
               <Card className="shadow-sm border-0 bg-card">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                    <Sun className="w-4 h-4 text-primary" /> Sunshine
+                    <Sun className="w-4 h-4 text-primary" /> 일조 시간
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="text-3xl font-semibold tracking-tight font-mono">
                     {simResult.sunshine_hours.toFixed(1)}
-                    <span className="text-lg text-muted-foreground ml-1">hrs</span>
+                    <span className="text-lg text-muted-foreground ml-1">시간</span>
                   </div>
                 </CardContent>
               </Card>
@@ -428,15 +437,15 @@ export default function Home() {
         {optimalResult && !findOptimal.isPending && (
           <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div>
-              <h2 className="text-2xl font-semibold tracking-tight">Optimal Tilt Analysis</h2>
-              <p className="text-muted-foreground mt-1">Comparing energy yield across different panel angles.</p>
+              <h2 className="text-2xl font-semibold tracking-tight">최적 경사각 분석</h2>
+              <p className="text-muted-foreground mt-1">경사각별 일일 발전량 비교 (0°~90°, 5° 간격)</p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Card className="shadow-sm border-0 bg-card border-l-4 border-l-primary">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                    <ArrowRight className="w-4 h-4 text-primary" /> Optimal Angle
+                    <ArrowRight className="w-4 h-4 text-primary" /> 최적 경사각
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -444,7 +453,7 @@ export default function Home() {
                     {optimalResult.optimal_tilt}°
                   </div>
                   <p className="text-sm text-muted-foreground mt-2">
-                    Applied to panel tilt control automatically.
+                    경사각 슬라이더에 자동으로 적용되었습니다.
                   </p>
                 </CardContent>
               </Card>
@@ -452,7 +461,7 @@ export default function Home() {
               <Card className="shadow-sm border-0 bg-card">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                    <Zap className="w-4 h-4 text-primary" /> Max Energy Yield
+                    <Zap className="w-4 h-4 text-primary" /> 최대 발전량
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -482,11 +491,11 @@ export default function Home() {
                       tickMargin={10}
                       axisLine={false}
                       tickLine={false}
-                      domain={['auto', 'auto']}
+                      domain={["auto", "auto"]}
                     />
                     <RechartsTooltip
-                      formatter={(val: number) => [`${(val / 1000).toFixed(2)} kWh`, "Energy Yield"]}
-                      labelFormatter={(val) => `Tilt: ${val}°`}
+                      formatter={(val: number) => [`${(val / 1000).toFixed(2)} kWh`, "발전량"]}
+                      labelFormatter={(val) => `경사각: ${val}°`}
                       contentStyle={{
                         backgroundColor: "hsl(var(--popover))",
                         borderColor: "hsl(var(--border))",
