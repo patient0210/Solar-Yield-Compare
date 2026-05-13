@@ -157,9 +157,9 @@ if FLASK_AVAILABLE:
         except Exception as e:
             return jsonify({"error": str(e)}), 500
 
-    if __name__ == "__main__":
-        port = int(os.environ.get("SOLAR_SIM_PORT", "5001"))
-        app.run(host="0.0.0.0", port=port, debug=False)
-else:
-    print("Flask not available. Install with: pip install flask", file=sys.stderr)
-    sys.exit(1)
+#    if __name__ == "__main__":
+#        port = int(os.environ.get("SOLAR_SIM_PORT", "5001"))
+#        app.run(host="0.0.0.0", port=port, debug=False)
+#else:
+#    print("Flask not available. Install with: pip install flask", file=sys.stderr)
+#    sys.exit(1)
